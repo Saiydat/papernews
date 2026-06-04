@@ -205,31 +205,71 @@ builds the PDF and caches it.
 
 ## Configuring sources
 
-Edit `sources.toml`. Two kinds are supported:
+Sources live in [`sources.toml`](sources.toml) — that's the exact file used
+to produce [the sample PDF](sample-2026-06-04.pdf). Open it, copy a block,
+edit, restart the container, refresh `/digest.pdf`.
+
+The order of `[[source]]` blocks in the file is the order they'll appear in
+the PDF — sources at the top come first. World news, quote of the day, and
+the "Did you know…" nuggets are not configured here — they're cover
+decorations, fetched fresh on every render.
+
+### `kind = "hn"` — Hacker News via the Algolia search API
+
+Ranks stories by points within a time window. No URL needed; the API is
+hardcoded.
+
+| field          | type | default | meaning |
+|----------------|------|---------|---------|
+| `name`         | string | required | display label (also the contents-page heading) |
+| `kind`         | string | required | must be `"hn"` |
+| `limit`        | int  | `10`     | how many top stories to keep |
+| `since_hours`  | int  | `48`     | only consider stories submitted in the last N hours |
+| `min_points`   | int  | `50`     | story must have at least this many points to qualify |
 
 ```toml
-# Hacker News via Algolia search — top by points within a time window.
 [[source]]
-name = "Hacker News"
-kind = "hn"
-limit = 10          # render at most N items from this source
-since_hours = 48    # surfacing window (ignored for limit, used for ranking)
-min_points = 100
+name        = "Hacker News"
+kind        = "hn"
+limit       = 10
+since_hours = 48
+min_points  = 100
+```
 
-# Any Atom/RSS feed via feedparser.
+### `kind = "rss"` — any Atom/RSS feed
+
+Parsed with [feedparser](https://feedparser.readthedocs.io/), so it accepts
+RSS 0.9/1.0/2.0 and Atom 1.0 — every blog and most news sites work.
+
+| field   | type   | default  | meaning |
+|---------|--------|----------|---------|
+| `name`  | string | required | display label (also the contents-page heading) |
+| `kind`  | string | required | must be `"rss"` |
+| `url`   | string | required | feed URL |
+| `limit` | int    | `20`     | take at most N most-recent items |
+
+```toml
 [[source]]
-name = "Quanta Magazine"
-kind = "rss"
+name  = "Quanta Magazine"
+kind  = "rss"
 url   = "https://www.quantamagazine.org/feed/"
 limit = 8
 ```
 
-The order of `[[source]]` blocks in the file is the order they'll appear in
-the PDF — sources at the top come first.
+### Per-source ordering and limits in practice
 
-World news (Wikipedia's Current Events portal) and the quote of the day
-(Wikiquote) are not configured here — they're decorations on the cover page
-and they're fetched fresh on every render.
+The `limit` is applied **twice**, on purpose:
+
+- At **fetch** time: gather doesn't pull more than `limit` items from the
+  feed (saves bandwidth and trafilatura time).
+- At **render** time: even if the store accumulates more than `limit` items
+  for a source across multiple ingests (it will — items don't get deleted),
+  only the latest `limit` per source make it into a given PDF.
+
+So if you want Quanta to have at most 8 articles in the issue, regardless of
+how many they've published this week → set `limit = 8`. If you want Hacker
+News to show only the top 5 by points in the last 24h → set `limit = 5,
+since_hours = 24`.
 
 ## Local development
 

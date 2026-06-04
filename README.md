@@ -2,13 +2,16 @@
 
 A self-hosted, slow web. Pulls a curated set of feeds every few hours, runs
 them through Claude for cleanup + summarization, and serves the result as a
-single beautifully-typeset LaTeX PDF — designed to be read on a reMarkable or
-similar e-ink tablet, not in a browser.
+single beautifully-typeset LaTeX PDF — designed for an e-ink reader like the
+reMarkable, but it works just as well in your browser's PDF viewer.
 
 The idea: stop refreshing Hacker News, MacRumors, Quanta, your favourite
 ML blog and your favourite math blog separately. Have one PDF appear every
 few hours that contains the new, cleaned-up, English-language version of all
 of it, plus today's quote of the day and a bit of world news.
+
+**See [`sample-2026-06-04.pdf`](sample-2026-06-04.pdf) for what a real day's
+output looks like.**
 
 ## Status
 

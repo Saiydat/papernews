@@ -2,20 +2,23 @@
 
 ![papernews on a reMarkable, next to a cup of coffee](assets/hero.jpg)
 
-I got tired of opening the same news pages over and over in the hope that
-something new had appeared. Hacker News, MacRumors, Quanta, my favourite ML
-blog, my favourite math blog — each one a different layout, fonts, colors,
-ads. Reading anything meant wading through somebody's design choices first.
+Every news site looks different. Hacker News, MacRumors, Quanta, my
+favourite ML blog, my favourite math blog — each one its own layout, fonts,
+colors, ads. To read anything I had to wade through somebody's design
+choices first and focus past the visual noise.
 
-**papernews** is the calm fix. A script pulls all those feeds once or twice
-a day, has Claude clean up, translate to English, and rewrite the article
-bodies — the **full text**, not just summaries — and renders the result
-into one magazine-style LaTeX PDF. Every article is *in* the PDF; you read
-entirely offline, no clicking through, no opening tabs.
+I much prefer reading the way a LaTeX paper or an old magazine looks: quiet
+typography, generous margins, no color, nothing competing for attention.
 
-One or two issues per day, no more. Nicely typeset, no colors, no ads, no
-font soup. Read at the kitchen table or on an e-ink tablet, at the pace you
-choose.
+**papernews** is the fix. A script pulls all those feeds, has Claude clean
+up, translate to English, and rewrite the article bodies — the **full
+text**, not just summaries — and renders the result into one consistently
+typeset LaTeX PDF. Every article is *in* the PDF; you read entirely
+offline, no clicking through, no opening tabs.
+
+A side benefit I didn't expect to like but very much do: one place to read
+the day's news instead of five tabs being refreshed all day. One or two
+issues per day, no more.
 
 Designed for an e-ink reader like the reMarkable, but it works just as well
 in any browser's PDF viewer.

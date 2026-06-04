@@ -47,5 +47,6 @@ CMD ["/opt/venv/bin/gunicorn", \
      "--workers", "1", \
      "--threads", "8", \
      "--bind", "0.0.0.0:8000", \
-     "--timeout", "120", \
+     "--timeout", "900", \
+     "--graceful-timeout", "30", \
      "papernews.web:app"]

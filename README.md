@@ -2,20 +2,20 @@
 
 ![papernews on a reMarkable, next to a cup of coffee](assets/hero.jpg)
 
-I got tired of opening Hacker News, MacRumors, Quanta, my favourite ML blog
-and my favourite math blog every day — each one a different layout, fonts,
-ads, colors, popups, and an infinite scroll that nudges me to refresh.
-Reading anything seriously meant a context switch every minute and a hit of
-dopamine every other.
+I got tired of opening the same news pages over and over in the hope that
+something new had appeared. Hacker News, MacRumors, Quanta, my favourite ML
+blog, my favourite math blog — each one a different layout, fonts, colors,
+ads. Reading anything meant wading through somebody's design choices first.
 
-**papernews** is the boring fix: a script that pulls all those feeds every
-few hours, has Claude clean up, translate to English, and rewrite the
-article bodies — the **full text**, not just summaries — and renders the
-result as one calm, magazine-style LaTeX PDF. Every article is *in* the PDF
-so you read entirely offline; no clicking through, no opening tabs, no
-following the links unless you actually want to.
+**papernews** is the calm fix. A script pulls all those feeds once or twice
+a day, has Claude clean up, translate to English, and rewrite the article
+bodies — the **full text**, not just summaries — and renders the result
+into one magazine-style LaTeX PDF. Every article is *in* the PDF; you read
+entirely offline, no clicking through, no opening tabs.
 
-You open it once. When you put it down, you're done for the day.
+One or two issues per day, no more. Nicely typeset, no colors, no ads, no
+font soup. Read at the kitchen table or on an e-ink tablet, at the pace you
+choose.
 
 Designed for an e-ink reader like the reMarkable, but it works just as well
 in any browser's PDF viewer.

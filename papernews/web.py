@@ -15,12 +15,23 @@ Environment:
   PAPERNEWS_CONFIG       path to sources.toml      (default: sources.toml)
   PAPERNEWS_CACHE        path to cache dir         (default: archive/cache)
   PAPERNEWS_WORKERS      LLM workers               (default: 8)
-  INGEST_INTERVAL_SECONDS                          (default: 14400 = 4h)
-  ANTHROPIC_API_KEY      required for claude -p
+
+  Scheduling — pick one:
+    INGEST_INTERVAL_SECONDS    every N seconds         (default: 14400 = 4h)
+    INGEST_SCHEDULE            "HH:MM,HH:MM,..." cron-style fixed times
+    INGEST_TIMEZONE            IANA tz, used with INGEST_SCHEDULE (default: UTC)
+
+  Post-ingest delivery hook:
+    POST_INGEST_HOOK           executable on disk; receives the PDF path as $1
+    POST_INGEST_HOOK_TIMEOUT   seconds (default: 300)
+
+  ANTHROPIC_API_KEY      required for the Claude SDK
 """
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
 import threading
 import tomllib
 from datetime import date
@@ -124,6 +135,24 @@ def _do_ingest() -> None:
         sources = _load_sources()
         store = Store(STATE_PATH)
         cmd_ingest(store, sources, WORKERS)
+
+        # Optional post-ingest delivery hook. The hook is an executable on the
+        # container's filesystem (usually dropped in via the bind volume) that
+        # receives the freshly-built PDF path as its single argument. Useful
+        # for SCP-ing to a reMarkable, mailing it somewhere, printing, etc.
+        hook = os.environ.get("POST_INGEST_HOOK", "").strip()
+        if hook:
+            try:
+                key = _current_key(store, sources)
+                pdf = _build_pdf_for_key(key, store, sources)
+                subprocess.run(
+                    [hook, str(pdf)],
+                    timeout=int(os.environ.get("POST_INGEST_HOOK_TIMEOUT", "300")),
+                    check=False,
+                )
+            except Exception as e:
+                sys.stderr.write(f"[post-ingest hook] {e}\n")
+                sys.stderr.flush()
     finally:
         _ingest_lock.release()
 
@@ -184,13 +213,50 @@ def create_app() -> Flask:
         threading.Thread(target=_do_ingest, daemon=True).start()
         return jsonify({"status": "started"}), 202
 
+    @app.get("/ingest")
+    def ingest_get_hint():
+        # Friendly 405 — easier than rediscovering you wanted POST.
+        return (
+            jsonify({
+                "error": "POST required to trigger ingest",
+                "hint": "curl -X POST http://localhost:8000/ingest",
+                "note": "the background scheduler also runs ingest automatically",
+            }),
+            405,
+        )
+
     return app
 
 
 def start_scheduler() -> BackgroundScheduler:
+    """Start the background ingest scheduler.
+
+    Two modes (in priority order):
+      INGEST_SCHEDULE=07:00,18:00   → cron-style at the listed HH:MM times
+      INGEST_INTERVAL_SECONDS=14400 → every N seconds (default 4h)
+
+    The cron mode also honours INGEST_TIMEZONE (an IANA tz, default UTC).
+    """
     sched = BackgroundScheduler(daemon=True)
-    sched.add_job(_do_ingest, "interval", seconds=INGEST_EVERY, id="ingest",
-                  next_run_time=None)
+    schedule = os.environ.get("INGEST_SCHEDULE", "").strip()
+    if schedule:
+        tz = os.environ.get("INGEST_TIMEZONE", "UTC")
+        for i, hm in enumerate(s.strip() for s in schedule.split(",") if s.strip()):
+            try:
+                h, m = hm.split(":")
+                sched.add_job(
+                    _do_ingest, "cron",
+                    hour=int(h), minute=int(m),
+                    id=f"ingest_cron_{i}",
+                    timezone=tz,
+                )
+            except (ValueError, KeyError):
+                sys.stderr.write(f"[scheduler] ignoring invalid time: {hm!r}\n")
+                sys.stderr.flush()
+    else:
+        sched.add_job(_do_ingest, "interval",
+                      seconds=INGEST_EVERY, id="ingest",
+                      next_run_time=None)
     sched.start()
     return sched
 

@@ -282,6 +282,87 @@ how many they've published this week → set `limit = 8`. If you want Hacker
 News to show only the top 5 by points in the last 24h → set `limit = 5,
 since_hours = 24`.
 
+> **On the totals.** Adding up every `limit` in `sources.toml` gives you the
+> maximum article count per issue. Aim for **30–60 articles** for a
+> comfortable 30–60 minute read. Claude's summaries are dense; volume isn't
+> quality. An empty section on a slow day is cleaner than padding.
+
+## Scheduling ingests
+
+Two modes; pick whichever fits your routine. Set the env var in `.env`.
+
+### Every N hours (default)
+
+```bash
+# .env
+INGEST_INTERVAL_SECONDS=14400   # 4 hours (the default)
+```
+
+### Cron-style fixed times — "morning and evening edition"
+
+```bash
+# .env
+INGEST_SCHEDULE=07:00,18:00     # comma-separated HH:MM
+INGEST_TIMEZONE=Europe/London   # any IANA tz; default UTC
+```
+
+If both are set, `INGEST_SCHEDULE` wins. The render is still on-demand —
+hitting `/digest.pdf` between scheduled runs gives you the cached PDF
+instantly.
+
+You can also kick a manual ingest any time:
+
+```bash
+curl -X POST http://localhost:8000/ingest
+```
+
+## Delivery — push the PDF wherever you want
+
+A built-in hook fires after every successful ingest. Point
+`POST_INGEST_HOOK` at any executable on the container's filesystem (drop
+the script into your `./data/hooks/` directory so it survives rebuilds via
+the bind mount). The hook receives the freshly-built PDF path as its first
+argument.
+
+```bash
+# .env
+POST_INGEST_HOOK=/data/hooks/push-to-remarkable.sh
+POST_INGEST_HOOK_TIMEOUT=300    # optional; default 300s
+```
+
+Hook failures are non-fatal — a broken hook logs an error but doesn't
+crash the ingest loop.
+
+### Sample: push to a reMarkable 2 over WiFi
+
+Drop this in `./data/hooks/push-to-remarkable.sh` and `chmod +x` it:
+
+```bash
+#!/usr/bin/env bash
+# Push the latest issue to a reMarkable 2 via SSH.
+# Usage: push-to-remarkable.sh <pdf-path>
+set -euo pipefail
+
+PDF="$1"
+REMARKABLE="root@10.11.99.1"            # adjust to your device's IP
+SSH_KEY=/data/hooks/remarkable_id_ed25519
+
+scp -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new \
+    "$PDF" "$REMARKABLE:/home/root/papernews.pdf"
+
+# Refresh the UI so the file appears immediately.
+ssh -i "$SSH_KEY" "$REMARKABLE" 'systemctl restart xochitl'
+```
+
+Generate a passwordless key (`ssh-keygen -t ed25519 -f
+data/hooks/remarkable_id_ed25519 -N ""`), add the `.pub` to the
+reMarkable's `/home/root/.ssh/authorized_keys` once, and from then on
+every ingest pushes the new paper to your device.
+
+The same pattern works for Kindle (`scp` over USB networking), a network
+printer (`lp -d papernews "$PDF"`), an email (`mutt -a "$PDF"`), or
+anything else you can script.
+
 ## Local development
 
 You don't have to use Docker — the CLI works directly:

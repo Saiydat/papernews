@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -7,6 +8,13 @@ from typing import Iterator
 
 import feedparser
 import requests
+
+
+def _clean_title(s: str | None) -> str:
+    """Decode HTML entities and collapse whitespace in feed-provided titles."""
+    if not s:
+        return ""
+    return " ".join(html.unescape(s).split())
 
 
 @dataclass
@@ -43,7 +51,7 @@ def fetch_hn(
     hits.sort(key=lambda h: h.get("points", 0), reverse=True)
 
     for h in hits[:limit]:
-        title = h.get("title") or ""
+        title = _clean_title(h.get("title"))
         if not title:
             continue
         url = h.get("url") or f"https://news.ycombinator.com/item?id={h.get('objectID')}"
@@ -81,7 +89,7 @@ def fetch_rss(source_name: str, feed_url: str, limit: int = 20) -> Iterator[RawI
     d = feedparser.parse(feed_url)
     for entry in d.entries[:limit]:
         url = getattr(entry, "link", None)
-        title = getattr(entry, "title", None)
+        title = _clean_title(getattr(entry, "title", None))
         if not url or not title:
             continue
         parsed = (

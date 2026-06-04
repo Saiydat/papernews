@@ -159,6 +159,7 @@ def fetch_tech_headlines(per_feed: int = 2, max_items: int = 5) -> list[dict]:
     """Return up to max_items recent tech headlines with their source feed.
     [{"text": title, "source": feed_name}, ...]"""
     import feedparser
+    import html as _html
 
     out: list[dict] = []
     seen: set[str] = set()
@@ -166,7 +167,8 @@ def fetch_tech_headlines(per_feed: int = 2, max_items: int = 5) -> list[dict]:
         d = feedparser.parse(url)
         count = 0
         for entry in d.entries:
-            title = (getattr(entry, "title", "") or "").strip()
+            raw = (getattr(entry, "title", "") or "").strip()
+            title = " ".join(_html.unescape(raw).split())
             if not title or title.lower() in seen:
                 continue
             seen.add(title.lower())

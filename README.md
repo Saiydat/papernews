@@ -1,5 +1,7 @@
 # papernews
 
+![papernews on a reMarkable, next to a cup of coffee](assets/hero.jpg)
+
 A self-hosted, slow web. Pulls a curated set of feeds every few hours, runs
 them through Claude for cleanup + summarization, and serves the result as a
 single beautifully-typeset LaTeX PDF — designed for an e-ink reader like the
@@ -16,6 +18,75 @@ output looks like.**
 ## Status
 
 Hobby project; works. Things will move. Expect rough edges.
+
+## How to use
+
+You need: a machine that can run Docker (your laptop, a NAS, a $5/mo VPS,
+anything), an [Anthropic API key](https://console.anthropic.com/settings/keys),
+and ~2 GB of disk for the image.
+
+```bash
+# 1) Pull
+git clone https://github.com/marcj/papernews
+cd papernews
+
+# 2) Configure your key
+cp .env.example .env
+$EDITOR .env             # paste ANTHROPIC_API_KEY=sk-ant-...
+
+# 3) Pick your sources
+$EDITOR sources.toml     # add/remove RSS/HN entries, set per-source limits
+
+# 4) (Optional) Tweak the look
+$EDITOR papernews/template.tex.j2
+
+# 5) Build + run
+docker compose up --build -d
+
+# Open http://localhost:8000
+# First PDF builds on demand and is cached. Background ingest runs every 4h.
+```
+
+Everything you'd normally want to change is in **two files**:
+
+- **`sources.toml`** — which feeds, how many items per feed, in what order.
+  Two source kinds today: `kind = "hn"` (Hacker News, top-by-points via the
+  Algolia API) and `kind = "rss"` (any Atom/RSS feed via feedparser).
+- **`papernews/template.tex.j2`** — the LaTeX template. Page size, fonts,
+  colors, layout, what goes on the cover, everything. Edit, restart the
+  container, refresh `/digest.pdf`.
+
+Optional but useful:
+
+- **`papernews/summarize.py`** + **`papernews/rewrite.py`** — the Claude
+  system prompts. Change `_MODEL` to `claude-sonnet-4-6` for fancier
+  rewrites at ~10× the cost; adjust `_SYSTEM` to change the editorial voice
+  (e.g. disable the auto-translate-to-English rule).
+- **`papernews/wiki.py`** — what goes into the World news block and the
+  Quote-of-the-day source.
+
+### Getting the PDF onto a reMarkable
+
+A few different ways, no special script needed:
+
+- **Manual** — open `http://your-machine:8000/digest.pdf` in a browser on
+  your phone/laptop and upload it to your reMarkable from there (drag-and-
+  drop on `my.remarkable.com`, or the reMarkable mobile app, or the USB Web
+  Interface at `http://10.11.99.1` while connected by USB).
+- **[`rmapi`](https://github.com/ddvk/rmapi)** — a third-party CLI that
+  pushes files to your reMarkable cloud account. Pair once, then:
+  ```bash
+  curl -s http://your-machine:8000/digest.pdf -o today.pdf
+  rmapi put today.pdf /Papernews
+  ```
+  Stick that two-liner in cron on the host and the device picks it up on
+  next sync automatically.
+- **Email-to-device** — if you have a reMarkable Connect subscription, send
+  the PDF as an email attachment to your device's `@my.remarkable.com`
+  address.
+
+No native push is built-in because everyone's setup is different and you
+probably don't want me poking your reMarkable cloud account with your token.
 
 ## Quick start
 
@@ -52,6 +123,14 @@ A 100–200 page PDF with:
 - All non-English source content (heise, etc.) is translated to English
   during the rewrite step. You can disable that in the prompt if you don't
   want it.
+
+### Cover page
+
+![Cover page: title, quote of the day, world news, table of contents](assets/cover.png)
+
+### Article body
+
+![A typical two-column article page, set in Latin Modern](assets/article.png)
 
 ## Architecture
 

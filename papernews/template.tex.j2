@@ -106,7 +106,7 @@
 \setlength{\parskip}{0.15em}
 \begin{multicols}{2}
 ((* for item in decorations.world_news *))
-\noindent\parbox[t]{\linewidth}{\raggedright ((( item.text | tex ))) ((* if item.source *)){\scriptsize\itshape (((( item.source | tex ))))}((* endif *))}\par\vspace{0.35em}
+\noindent\parbox[t]{\linewidth}{\raggedright ((* if item.url *))\href{((( item.url | texurl )))}{((( item.text | tex )))}((* else *))((( item.text | tex )))((* endif *)) ((* if item.source *)){\scriptsize\itshape (((( item.source | tex ))))}((* endif *))}\par\vspace{0.35em}
 ((* endfor *))
 \end{multicols}
 \endgroup

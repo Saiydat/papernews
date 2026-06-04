@@ -156,23 +156,24 @@ _WESTERN_RE = re.compile(
 
 
 def fetch_tech_headlines(per_feed: int = 2, max_items: int = 5) -> list[dict]:
-    """Return up to max_items recent tech headlines with their source feed.
-    [{"text": title, "source": feed_name}, ...]"""
+    """Return up to max_items recent tech headlines with their source feed
+    and the article URL. [{"text", "source", "url"}, ...]"""
     import feedparser
     import html as _html
 
     out: list[dict] = []
     seen: set[str] = set()
-    for feed_name, url in _TECH_FEEDS:
-        d = feedparser.parse(url)
+    for feed_name, feed_url in _TECH_FEEDS:
+        d = feedparser.parse(feed_url)
         count = 0
         for entry in d.entries:
             raw = (getattr(entry, "title", "") or "").strip()
             title = " ".join(_html.unescape(raw).split())
+            article_url = (getattr(entry, "link", "") or "").strip() or None
             if not title or title.lower() in seen:
                 continue
             seen.add(title.lower())
-            out.append({"text": title, "source": feed_name})
+            out.append({"text": title, "source": feed_name, "url": article_url})
             count += 1
             if count >= per_feed:
                 break
@@ -252,7 +253,11 @@ def summarize_world_news(items: list[dict]) -> list[dict]:
     if len(shortened) != len(items):
         return items
     return [
-        {"text": shortened[i], "source": items[i].get("source")}
+        {
+            "text": shortened[i],
+            "source": items[i].get("source"),
+            "url": items[i].get("url"),
+        }
         for i in range(len(items))
     ]
 

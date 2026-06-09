@@ -19,12 +19,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # rmapi: reMarkable API client — static Go binary, no runtime deps.
-# Check https://github.com/ddvk/rmapi/releases for the latest version.
+# Pinned + checksummed; bump both when upgrading. Release assets at
+# https://github.com/ddvk/rmapi/releases.
 ARG RMAPI_VERSION=0.0.34
-RUN curl -fsSL \
+ARG RMAPI_SHA256=3e17c4a4d529a9e71eaa970b64d9cfbf2dd2cb16c55c4d397d6d821e135c9fae
+RUN curl -fsSL -o /tmp/rmapi.tgz \
         "https://github.com/ddvk/rmapi/releases/download/v${RMAPI_VERSION}/rmapi-linux-amd64.tar.gz" \
-    | tar -xz -C /usr/local/bin rmapi \
- && chmod +x /usr/local/bin/rmapi
+ && echo "${RMAPI_SHA256}  /tmp/rmapi.tgz" | sha256sum -c - \
+ && tar -xz -C /usr/local/bin -f /tmp/rmapi.tgz rmapi \
+ && chmod +x /usr/local/bin/rmapi \
+ && rm /tmp/rmapi.tgz
 
 WORKDIR /app
 

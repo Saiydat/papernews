@@ -12,3 +12,5 @@ state.db
 .DS_Store
 data/
 .env
+docker-compose.override.yml
+rmapi-config/

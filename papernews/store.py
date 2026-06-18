@@ -210,3 +210,40 @@ class Store:
             "pending_render":   c("SELECT COUNT(*) FROM article WHERE rendered_at IS NULL AND summary IS NOT NULL AND text IS NOT NULL").fetchone()[0],
             "rendered":         c("SELECT COUNT(*) FROM article WHERE rendered_at IS NOT NULL").fetchone()[0],
         }
+
+    def per_source_counts(self) -> dict[str, dict[str, int]]:
+        """Article counts grouped by source: {source: {total, rendered,
+        unreadable}}. Powers the per-source breakdown on the admin dashboard."""
+        cur = self.con.execute(
+            """
+            SELECT source,
+                   COUNT(*)                                          AS total,
+                   SUM(CASE WHEN rendered_at IS NOT NULL THEN 1 ELSE 0 END) AS rendered,
+                   SUM(CASE WHEN text        IS NULL     THEN 1 ELSE 0 END) AS unreadable
+              FROM article
+             GROUP BY source
+            """
+        )
+        return {
+            r["source"]: {
+                "total": r["total"],
+                "rendered": r["rendered"] or 0,
+                "unreadable": r["unreadable"] or 0,
+            }
+            for r in cur.fetchall()
+        }
+
+    def recent(self, limit: int = 50) -> list[sqlite3.Row]:
+        """Most recently fetched articles, newest first, with the columns the
+        admin dashboard needs to derive a per-article pipeline status."""
+        cur = self.con.execute(
+            """
+            SELECT source, url, title, text, body, summary,
+                   surfaced, published, fetched_at, rendered_at
+              FROM article
+             ORDER BY fetched_at DESC
+             LIMIT ?
+            """,
+            (limit,),
+        )
+        return list(cur.fetchall())

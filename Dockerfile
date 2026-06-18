@@ -50,16 +50,20 @@ RUN python3 -m venv /opt/venv \
  && /opt/venv/bin/pip install --no-cache-dir \
         requests feedparser trafilatura jinja2 \
         flask apscheduler gunicorn \
-        anthropic httpx
+        anthropic httpx \
+        tomli-w
 
 COPY papernews ./papernews
 COPY sources.toml ./
 RUN /opt/venv/bin/pip install --no-cache-dir -e .
 
-# State + cache live on a mounted volume.
+# State + cache live on a mounted volume. The sources config lives on the
+# volume too (so edits from the /admin UI persist); it's seeded on first boot
+# from the baked-in default at /app/sources.toml (PAPERNEWS_DEFAULT_CONFIG).
 RUN mkdir -p /data/archive/cache
 ENV PAPERNEWS_STATE=/data/state.db
-ENV PAPERNEWS_CONFIG=/app/sources.toml
+ENV PAPERNEWS_CONFIG=/data/sources.toml
+ENV PAPERNEWS_DEFAULT_CONFIG=/app/sources.toml
 ENV PAPERNEWS_CACHE=/data/archive/cache
 
 EXPOSE 8000

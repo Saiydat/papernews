@@ -25,13 +25,12 @@ services:
       - POST_INGEST_HOOK=${POST_INGEST_HOOK:-}
       - POST_INGEST_HOOK_TIMEOUT=${POST_INGEST_HOOK_TIMEOUT:-300}
     volumes:
-      # State, archive and cache.
+      # State, archive, cache — and sources.toml, seeded on first boot from the
+      # image default and editable live via the /admin page (persists here).
       - ./data:/data
       # rmapi auth token — generate once by running rmapi interactively.
       # Only needed if you use the reMarkable post-ingest hook.
       - ${RMAPI_CONFIG:-${HOME}/.config/rmapi}:/root/.config/rmapi:ro
-      # sources.toml is baked into the image; uncomment to override without rebuilding:
-      # - ./sources.toml:/app/sources.toml:ro
 
-    # The app listens on port 8000 internally. Expose it via your reverse proxy,
-    # or add a `ports:` mapping here for direct access.
+    # The app listens on port 8000 internally (landing page + /admin dashboard).
+    # Expose it via your reverse proxy, or add a `ports:` mapping for direct access.

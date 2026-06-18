@@ -13,6 +13,7 @@ dependencies = [
     "gunicorn>=21.2",
     "anthropic>=0.40",
     "httpx>=0.27",
+    "tomli-w>=1.0",
 ]
 
 # LLM backend is selected via LLM_BACKEND env var ("anthropic" or "ollama").

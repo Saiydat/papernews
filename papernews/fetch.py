@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -8,6 +9,8 @@ from typing import Iterator
 
 import feedparser
 import requests
+
+log = logging.getLogger(__name__)
 
 
 def _clean_title(s: str | None) -> str:
@@ -28,8 +31,13 @@ class RawItem:
     surfaced: str | None = None  # ISO date "YYYY-MM-DD" or None
 
 
-# Algolia HN search. Returns stories matching the numericFilters, ranked by
-# popularity. We then re-sort by points and truncate to `limit`.
+# Algolia HN search. We filter by submission date server-side, then re-sort by
+# points and truncate to `limit` client-side.
+#
+# NOTE: `points` is NOT in HN's `numericAttributesForFiltering`, so passing it in
+# `numericFilters` makes Algolia return HTTP 400 ("invalid numeric attribute").
+# Only `created_at_i` (and `num_comments`) are filterable server-side, so the
+# `min_points` threshold is applied client-side below.
 _HN_SEARCH = "https://hn.algolia.com/api/v1/search"
 
 
@@ -42,12 +50,22 @@ def fetch_hn(
     since = int(time.time() - since_hours * 3600)
     params = {
         "tags": "story",
-        "numericFilters": f"created_at_i>{since},points>{min_points}",
+        "numericFilters": f"created_at_i>{since}",
         "hitsPerPage": 100,
     }
-    r = requests.get(_HN_SEARCH, params=params, timeout=15)
-    r.raise_for_status()
-    hits = r.json().get("hits", [])
+    try:
+        r = requests.get(_HN_SEARCH, params=params, timeout=15)
+        r.raise_for_status()
+        hits = r.json().get("hits", [])
+    except Exception as e:
+        # Don't let an HN outage take down the whole ingest cycle — log and
+        # yield nothing so the other sources still run.
+        log.warning("fetch_hn failed, skipping Hacker News this cycle: %s", e)
+        return
+
+    # `points` can't be filtered server-side (see note above), so drop
+    # below-threshold stories here, then keep the top `limit` by points.
+    hits = [h for h in hits if (h.get("points") or 0) > min_points]
     hits.sort(key=lambda h: h.get("points", 0), reverse=True)
 
     for h in hits[:limit]:

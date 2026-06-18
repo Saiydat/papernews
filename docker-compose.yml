@@ -1,30 +1,37 @@
 services:
   papernews:
+    # Pull the published image, or build locally with `docker compose build`.
+    image: ghcr.io/saiydat/papernews:latest
     build: .
-    image: papernews:latest
     container_name: papernews
     restart: unless-stopped
     environment:
-      # LLM backend — "anthropic" (default) or "ollama" (bring your own Ollama instance)
+      # LLM backend — "anthropic" (default) or "ollama" (bring your own Ollama instance).
       - LLM_BACKEND=${LLM_BACKEND:-anthropic}
+      # Required when LLM_BACKEND=anthropic.
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      # `host.docker.internal` reaches an Ollama running on the host. On
-      # Docker Desktop (Mac/Windows) this resolves automatically; the
-      # extra_hosts entry below is what makes it work on Linux too.
+      # Ollama endpoint. Default reaches an Ollama on the host; if Ollama runs in
+      # a container on a shared network, set OLLAMA_HOST=http://ollama:11434 in .env.
       - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-mistral}
+      - OLLAMA_TIMEOUT=${OLLAMA_TIMEOUT:-1800}
+      # Scheduling: interval-based by default; INGEST_SCHEDULE (HH:MM,...) overrides it.
       - INGEST_INTERVAL_SECONDS=${INGEST_INTERVAL_SECONDS:-14400}
+      - INGEST_SCHEDULE=${INGEST_SCHEDULE:-}
+      - INGEST_TIMEZONE=${INGEST_TIMEZONE:-UTC}
+      # LLM worker concurrency (lower it for Ollama/CPU).
       - PAPERNEWS_WORKERS=${PAPERNEWS_WORKERS:-8}
-      # Hook to push the PDF to reMarkable after each ingest
+      # Optional hook run after each ingest (e.g. push the PDF to a reMarkable).
       - POST_INGEST_HOOK=${POST_INGEST_HOOK:-}
       - POST_INGEST_HOOK_TIMEOUT=${POST_INGEST_HOOK_TIMEOUT:-300}
     volumes:
+      # State, archive and cache.
       - ./data:/data
-      - ./sources.toml:/app/sources.toml:ro
-      # rmapi auth token — generate once by running rmapi interactively
+      # rmapi auth token — generate once by running rmapi interactively.
+      # Only needed if you use the reMarkable post-ingest hook.
       - ${RMAPI_CONFIG:-${HOME}/.config/rmapi}:/root/.config/rmapi:ro
-    extra_hosts:
-      # Lets `OLLAMA_HOST=http://host.docker.internal:...` work on Linux.
-      - "host.docker.internal:host-gateway"
-    ports:
-      - "8000:8000"
+      # sources.toml is baked into the image; uncomment to override without rebuilding:
+      # - ./sources.toml:/app/sources.toml:ro
+
+    # The app listens on port 8000 internally. Expose it via your reverse proxy,
+    # or add a `ports:` mapping here for direct access.

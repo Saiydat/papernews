@@ -13,7 +13,7 @@ _SYSTEM = (
     "- Output ONLY the reformatted body for each input article. No preamble, no metadata, no meta-commentary, no questions.\n"
     "- Preserve all factual content. Do NOT add information, opinions, or commentary.\n"
     "- Do NOT shorten or summarize. Keep the full piece.\n"
-    "- Output language: ENGLISH. If the source is in another language (German, French, etc.), translate the content into idiomatic English. Preserve proper nouns, brand names, and code identifiers as-is.\n"
+    "- Output language: FRENCH (français). Whatever the source language (English, German, etc.), produce the reformatted body in idiomatic French. Preserve proper nouns, brand names, and code identifiers as-is.\n"
     "\n"
     "PARAGRAPH STRUCTURE:\n"
     "- Merge incidental line breaks from the source into proper paragraphs.\n"

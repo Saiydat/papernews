@@ -228,8 +228,9 @@ def summarize_world_news(items: list[dict]) -> list[dict]:
 
     system = (
         "You rewrite news bullets for a compact daily digest.\n"
+        "- Output language: FRENCH (français), regardless of the source language. Translate if needed.\n"
         "- Output ONE short sentence per input bullet, max 18 words.\n"
-        "- Preserve all key facts (who, what, where).\n"
+        "- Preserve all key facts (who, what, where). Keep proper nouns and brand names as-is.\n"
         "- Do NOT include any source citation in the output (the source is shown separately).\n"
         "- No preamble, no quotes, no commentary.\n"
         "- Output EXACTLY one line per input bullet, in the same order, prefixed with its number and a period."

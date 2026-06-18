@@ -57,6 +57,11 @@ COPY papernews ./papernews
 COPY sources.toml ./
 RUN /opt/venv/bin/pip install --no-cache-dir -e .
 
+# Bundled post-ingest hooks (e.g. copy the digest into a Grimmory library).
+# Enable one by setting POST_INGEST_HOOK=/app/hooks/<name>.sh in the env.
+COPY hooks ./hooks
+RUN chmod +x hooks/*.sh
+
 # State + cache live on a mounted volume. The sources config lives on the
 # volume too (so edits from the /admin UI persist); it's seeded on first boot
 # from the baked-in default at /app/sources.toml (PAPERNEWS_DEFAULT_CONFIG).

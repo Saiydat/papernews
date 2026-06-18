@@ -394,10 +394,10 @@ curl -X POST http://localhost:8000/ingest
 ## Delivery — push the PDF wherever you want
 
 A built-in hook fires after every successful ingest. Point
-`POST_INGEST_HOOK` at any executable on the container's filesystem (drop
-the script into your `./data/hooks/` directory so it survives rebuilds via
-the bind mount). The hook receives the freshly-built PDF path as its first
-argument.
+`POST_INGEST_HOOK` at any executable on the container's filesystem — either a
+**bundled** hook under `/app/hooks/` (versioned in the image) or your own
+script dropped into `./data/hooks/` (survives rebuilds via the bind mount).
+The hook receives the freshly-built PDF path as its first argument.
 
 ```bash
 # .env
@@ -407,6 +407,33 @@ POST_INGEST_HOOK_TIMEOUT=300    # optional; default 300s
 
 Hook failures are non-fatal — a broken hook logs an error but doesn't
 crash the ingest loop.
+
+### Bundled: copy into a Grimmory (or any folder-scanning) library
+
+[`hooks/copy-to-grimmory.sh`](hooks/copy-to-grimmory.sh) is shipped in the
+image at `/app/hooks/copy-to-grimmory.sh`. It copies the freshly-built digest
+into a library folder, named by date (`Papernews - YYYY-MM-DD.pdf`, same-day
+re-ingest overwrites), so a book manager like **Grimmory** that scans a folder
+picks it up. On UnRaid it writes the file as `99:100` (nobody:users) so the
+reader can access it.
+
+Enable it by setting the env var **and mounting the library folder** — keep the
+mount in your own compose/override, not in the repo's generic `docker-compose.yml`:
+
+```yaml
+# docker-compose.override.yml (your stack)
+services:
+  papernews:
+    environment:
+      - POST_INGEST_HOOK=/app/hooks/copy-to-grimmory.sh
+      # - GRIMMORY_DIR=/grimmory-library   # optional; this is the default
+    volumes:
+      - /mnt/user/data/media/books:/grimmory-library   # your Grimmory library
+```
+
+Both containers just share that folder on disk — pure file copy, nothing else.
+The hook is idempotent and exits cleanly (logging to the container's stdout) if
+no PDF exists yet or the folder isn't mounted.
 
 ### Sample: push to a reMarkable 2 over WiFi
 
@@ -531,6 +558,7 @@ papernews/
 │   ├── cli.py            # papernews command
 │   ├── web.py            # Flask + APScheduler + /admin dashboard
 │   └── template.tex.j2   # the magazine
+├── hooks/                # bundled POST_INGEST_HOOK scripts (copy-to-grimmory.sh)
 ├── sources.toml          # configured feeds
 ├── pyproject.toml
 ├── Dockerfile

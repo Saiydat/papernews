@@ -2,6 +2,17 @@
 
 ![papernews on a reMarkable, next to a cup of coffee](assets/hero.jpg)
 
+> **This is a fork of [marcj/papernews](https://github.com/marcj/papernews).**
+> What differs from upstream:
+> - output is rewritten in **French** (upstream targets English);
+> - a published container image on **GHCR** — `ghcr.io/saiydat/papernews`;
+> - a web **`/admin`** dashboard to watch the pipeline and add / enable /
+>   disable / delete sources without editing files;
+> - the sources config is persisted on the `/data` volume (seeded on first run).
+>
+> All credit for the original project goes to its author; the code stays MIT —
+> see [LICENSE](LICENSE).
+
 Every news site looks different. Hacker News, MacRumors, Quanta, my
 favourite ML blog, my favourite math blog — each one its own layout, fonts,
 colors, ads. To read anything I had to wade through somebody's design
@@ -10,9 +21,10 @@ choices first and focus past the visual noise.
 I much prefer reading the way a LaTeX paper or an old magazine looks: quiet
 typography, generous margins, no color, nothing competing for attention.
 
-**papernews** is the fix. A script pulls all those feeds, has Claude clean
-up, translate to English, and rewrite the article bodies — the **full
-text**, not just summaries — and renders the result into one consistently
+**papernews** is the fix. A script pulls all those feeds, has an LLM (Claude,
+or a local model via Ollama) clean up, translate to **French**, and rewrite
+the article bodies — the **full text**, not just summaries — and renders the
+result into one consistently
 typeset LaTeX PDF. Every article is *in* the PDF; you read entirely
 offline, no clicking through, no opening tabs.
 
@@ -37,31 +49,32 @@ anything), an LLM backend (Anthropic API key **or** a local
 
 ```bash
 # 1) Pull
-git clone https://github.com/marcj/papernews
+git clone https://github.com/saiydat/papernews
 cd papernews
 
 # 2) Configure
 cp .env.example .env
-$EDITOR .env             # paste ANTHROPIC_API_KEY=sk-ant-... (or set LLM_BACKEND=ollama)
+$EDITOR .env             # set LLM_BACKEND=ollama + OLLAMA_HOST/OLLAMA_MODEL,
+                         # or paste ANTHROPIC_API_KEY=sk-ant-...
 
-# 3) Pick your sources
-$EDITOR sources.toml     # add/remove RSS/HN entries, set per-source limits
-
-# 4) (Optional) Tweak the look
+# 3) (Optional) Tweak the look
 $EDITOR papernews/template.tex.j2
 
-# 5) Build + run
-docker compose up --build -d
+# 4) Run — pulls ghcr.io/saiydat/papernews; add --build to build locally
+docker compose up -d
 
-# Open http://localhost:8000
+# Open http://localhost:8000   (admin dashboard at /admin)
+# Pick your sources from /admin — no file editing needed.
 # First PDF builds on demand and is cached. Background ingest runs every 4h.
 ```
 
-Everything you'd normally want to change is in **two files**:
+Two things you'll typically change:
 
-- **`sources.toml`** — which feeds, how many items per feed, in what order.
-  Two source kinds today: `kind = "hn"` (Hacker News, top-by-points via the
-  Algolia API) and `kind = "rss"` (any Atom/RSS feed via feedparser).
+- **Sources** — manage them live from the **`/admin`** dashboard (add, enable,
+  disable, delete, with an RSS feed test before adding) — no restart needed.
+  They're stored in `sources.toml` on the `/data` volume, seeded on first boot.
+  Two source kinds: `kind = "hn"` (Hacker News, top-by-points via the Algolia
+  API) and `kind = "rss"` (any Atom/RSS feed via feedparser).
 - **`papernews/template.tex.j2`** — the LaTeX template. Page size, fonts,
   colors, layout, what goes on the cover, everything. Edit, restart the
   container, refresh `/digest.pdf`.
@@ -71,8 +84,8 @@ Optional but useful:
 - **`papernews/summarize.py`** + **`papernews/rewrite.py`** — the LLM
   system prompts. When using Anthropic, change `ANTHROPIC_MODEL` to
   `claude-sonnet-4-6` for fancier rewrites at ~10× the cost; adjust
-  `_SYSTEM` to change the editorial voice (e.g. disable the
-  auto-translate-to-English rule).
+  `_SYSTEM` to change the editorial voice or the output language (this fork
+  emits **French** — change the `Output language` rule to switch).
 - **`papernews/wiki.py`** — what goes into the World news block and the
   Quote-of-the-day source.
 
@@ -106,12 +119,12 @@ probably don't want me poking your reMarkable cloud account with your token.
 ## Quick start
 
 ```bash
-git clone https://github.com/yourname/papernews
+git clone https://github.com/saiydat/papernews
 cd papernews
 cp .env.example .env
-# paste your ANTHROPIC_API_KEY into .env (get one at
-# https://console.anthropic.com/settings/keys)
-docker compose up --build
+# set LLM_BACKEND=ollama (+ OLLAMA_HOST/OLLAMA_MODEL), or paste your
+# ANTHROPIC_API_KEY (https://console.anthropic.com/settings/keys)
+docker compose up -d        # add --build to build locally instead of pulling GHCR
 ```
 
 Then visit `http://localhost:8000` — landing page with a preview image and a
@@ -178,9 +191,10 @@ A 100–200 page PDF with:
   paragraph indents, hyphenation, microtypography. Math (`$x = y$`,
   `$$\int f$$`, `\(...\)`, `\[...\]`) is rendered as real LaTeX math. Code
   blocks (fenced or inline) come through in monospace.
-- All non-English source content (heise, etc.) is translated to English
-  during the rewrite step. You can disable that in the prompt if you don't
-  want it.
+- Article bodies and summaries are produced in **French**, translated from
+  whatever the source language is during the rewrite step. (The cover's Quote
+  of the day and "Did you know…" come straight from English Wikipedia and stay
+  in English; the World-news bullets are translated.)
 
 ### Cover page
 
@@ -238,10 +252,10 @@ Four stages, each idempotent and resumable:
 1. **gather** — pulls new items from each source, runs `trafilatura` to
    extract the article body, stores the raw text. Pure I/O — no LLM cost.
 2. **summarize** — batches up to 8 articles per LLM call and produces a
-   ≤40-word two-sentence summary for each (used as the lede in the front
-   matter and in the contents listing).
+   ≤50-word two-sentence French summary for each (used as the lede in the
+   front matter and in the contents listing).
 3. **rewrite** — batches up to 8 articles per LLM call and produces a
-   clean, properly-paragraphed, translated-to-English version of each
+   clean, properly-paragraphed, translated-to-French version of each
    article body for the renderer. Preserves code fences and `$math$` exactly.
 4. **render** — pulls the latest N articles per source from the store,
    plus fresh world news + quote + DYK, and runs them through a Jinja
@@ -261,14 +275,25 @@ builds the PDF and caches it.
 | `GET /digest.pdf` | the current edition (built on demand, then cached)   |
 | `GET /preview.png` | page 1 rasterized at 180 DPI                        |
 | `GET /sources` | JSON list of configured sources + latest `fetched_at`   |
+| `GET /admin`   | dashboard: pipeline state, recent articles, source management |
+| `POST /admin/sources` | add a source (`/test`, `/<name>/toggle`, `/<name>/delete` for the rest) |
 | `GET /healthz` | liveness probe (returns `ok`)                           |
 | `POST /ingest` | manual kick of the gather → summarize → rewrite cycle   |
 
+> **No authentication.** The `/admin` routes can mutate sources and trigger
+> ingests, so keep the service on a trusted network (LAN/VPN) — don't expose
+> it directly to the internet.
+
 ## Configuring sources
 
-Sources live in [`sources.toml`](sources.toml) — that's the exact file used
-to produce [the sample PDF](sample-2026-06-04.pdf). Open it, copy a block,
-edit, restart the container, refresh `/digest.pdf`.
+Manage sources two ways: from the **`/admin`** dashboard (add / enable /
+disable / delete, with an RSS feed test) — no restart needed — or by editing
+`sources.toml` directly. In Docker the live file is on the `/data` volume
+(`/data/sources.toml`), seeded on first boot from the copy in this repo —
+that's the exact file used to produce
+[the sample PDF](sample-2026-06-04.pdf). A source carries an optional
+`enabled` flag (default `true`); disabled sources are skipped at ingest and
+render.
 
 The order of `[[source]]` blocks in the file is the order they'll appear in
 the PDF — sources at the top come first. World news, quote of the day, and
@@ -502,14 +527,15 @@ papernews/
 │   ├── render.py         # Jinja + xelatex
 │   ├── preview.py        # PDF → PNG via pdftoppm
 │   ├── cache.py          # On-disk cache by content hash
+│   ├── config.py         # sources.toml read/write (powers the /admin UI)
 │   ├── cli.py            # papernews command
-│   ├── web.py            # Flask + APScheduler
+│   ├── web.py            # Flask + APScheduler + /admin dashboard
 │   └── template.tex.j2   # the magazine
 ├── sources.toml          # configured feeds
 ├── pyproject.toml
 ├── Dockerfile
 ├── docker-compose.yml
-└── data/                 # gitignored — your SQLite + cached PDFs
+└── data/                 # gitignored — SQLite, cached PDFs, live sources.toml
 ```
 
 ## Contributing
